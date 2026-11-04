@@ -1,5 +1,6 @@
 import os
 import re
+import asyncio
 import threading
 
 from flask import Flask
@@ -234,12 +235,17 @@ async def auto_caption(client, message):
 # ================ RUN BOT ================
 
 
+
 if __name__ == "__main__":
 
     threading.Thread(
         target=run_web,
         daemon=True
     ).start()
+
+    asyncio.set_event_loop(
+        asyncio.new_event_loop()
+    )
 
     print("Auto Caption Bot Started!")
 

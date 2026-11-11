@@ -1,6 +1,5 @@
 import os
 import re
-import asyncio
 import threading
 
 from flask import Flask
@@ -42,11 +41,11 @@ def run_web():
     web.run(host="0.0.0.0", port=port)
 
 
-DEFAULT_TEMPLATE = """Series: Money Mafia
-Season: {season}
-Episode: {episode}
+DEFAULT_TEMPLATE = """Series Name: {series}
 Language: Hindi + English
-Quality: {quality}"""
+Season: {season}
+Quality: {quality}
+Episode: {episode}"""
 
 
 def get_template():
@@ -61,7 +60,6 @@ def get_template():
 def extract_details(filename, old_caption):
     text = f"{filename or ''} {old_caption or ''}"
 
-    # Season and Episode detection
     season = "N/A"
     episode = "N/A"
 
@@ -75,11 +73,10 @@ def extract_details(filename, old_caption):
         match = re.search(pattern, text)
 
         if match:
-            season = str(int(match.group(1)))
-            episode = str(int(match.group(2)))
+            season = match.group(1)
+            episode = match.group(2)
             break
 
-    # Quality detection
     quality = "N/A"
 
     quality_match = re.search(
@@ -88,7 +85,10 @@ def extract_details(filename, old_caption):
     )
 
     if quality_match:
-        quality = quality_match.group(1).upper() if quality_match.group(1).lower() == "4k" else quality_match.group(1)
+        quality = quality_match.group(1)
+
+        if quality.lower() == "4k":
+            quality = "4K"
 
     return season, episode, quality
 
@@ -104,9 +104,12 @@ def create_caption(message):
         old_caption
     )
 
+    series = filename.rsplit(".", 1)[0] if filename else "N/A"
+
     template = get_template()
 
     caption = template.format(
+        series=series,
         season=season,
         episode=episode,
         quality=quality
@@ -127,10 +130,12 @@ async def start_command(client, message):
         "/setcaption - Set Caption Format\n"
         "/caption - Show Current Caption\n"
         "/resetcaption - Reset Caption\n\n"
-        "Placeholders:\n"
+        "Available Auto Placeholders:\n"
+        "{series}\n"
         "{season}\n"
         "{episode}\n"
-        "{quality}"
+        "{quality}\n\n"
+        "Other text will remain unchanged."
     )
 
 
@@ -148,21 +153,14 @@ async def set_caption(client, message):
     if not template:
         return await message.reply_text(
             "Example:\n\n"
-            "/setcaption Series: Money Mafia\n"
+            "/setcaption Series Name: {series}\n"
+            "Language: Hindi Korean Tamil Telugu\n"
             "Season: {season}\n"
-            "Episode: {episode}\n"
-            "Language: Hindi + English\n"
-            "Quality: {quality}"
-        )
-
-    required = ["{season}", "{episode}", "{quality}"]
-
-    if not all(item in template for item in required):
-        return await message.reply_text(
-            "❌ Template must contain:\n"
-            "{season}\n"
-            "{episode}\n"
-            "{quality}"
+            "Quality: 720p\n"
+            "Episode: {episode}\n\n"
+            "Available placeholders:\n"
+            "{series}, {season}, {episode}, {quality}\n\n"
+            "Use only the placeholders you need."
         )
 
     settings.update_one(
@@ -233,7 +231,6 @@ async def auto_caption(client, message):
 
 
 # ================ RUN BOT ================
-
 
 
 if __name__ == "__main__":
